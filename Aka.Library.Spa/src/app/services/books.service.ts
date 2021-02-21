@@ -23,10 +23,7 @@ export class BooksService {
 
   getBooks(libraryId: number): Observable<Book[]> {
     const url = `${this.apiUrl}${libraryId}/books`;
-    return this.http.get<LibraryBook[]>(url)
-      .pipe(
-        map(items => items.map(item => item.book))
-      );
+    return this.http.get<Book[]>(url);
   }
 
   getBook(libraryId: number, bid: number): Observable<Book> {
@@ -92,7 +89,7 @@ export class BooksService {
   getBookMetaData(isbn: string): Observable<GoogleBooksMetadata> {
     // TODO: Add implementation
     const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=${this.googleBooksAPIKey}`;
-
+    console.log(url)
     // return this.http.get(url);
     return throwError('Funtion not implemented');
 

@@ -26,6 +26,12 @@ const routes: Routes = [
     path: 'checked-out',
     loadChildren: './checked-out/checked-out.module#CheckedOutModule',
     canActivate: [AuthGuard],
+    canActivateChild: [AuthChildrenGuard],
+  },
+  {
+    path: 'checked-out/history',
+    loadChildren: './checked-out/checked-out.module#CheckedOutModule',
+    canActivate: [AuthGuard],
     canActivateChild: [AuthChildrenGuard]
   },
   { path: '**', component: PageNotFoundComponent }
