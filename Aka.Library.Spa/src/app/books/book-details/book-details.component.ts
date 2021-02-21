@@ -1,6 +1,6 @@
 import { BooksService } from '../../services/books.service';
-import { forkJoin, throwError, Subscription } from 'rxjs';
-import { map, catchError, tap, take } from 'rxjs/operators';
+import {forkJoin, throwError, Subscription} from 'rxjs';
+import {map, catchError, tap, take, delay} from 'rxjs/operators';
 import { Book } from '../../shared/book';
 import { Component, OnInit, HostBinding } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
@@ -53,7 +53,7 @@ export class BookDetailsComponent implements OnInit {
    */
   isMaximumNumberOfBooksSignedOut(): boolean {
     // TODO: Implement check
-    return false;
+    return this.numOfThisBookSignedOutByUser > 0 || this.numBooksAvailable < 1;
   }
 
   checkOutBook() {
@@ -90,6 +90,11 @@ export class BookDetailsComponent implements OnInit {
    * @memberof BookDetailsComponent
    */
   getBookDetails(libraryId: number, bookId: number) {
+    forkJoin([
+      this.books.getBook(libraryId, bookId),
+      this.books.getNumberOfAvailableBookCopies(libraryId, bookId),
+      this.memberService.getSignedOutBooks(this.authService.currentMember)
+    ]).subscribe(res => console.log(res))
     forkJoin([
       this.books.getBook(libraryId, bookId),
       this.books.getNumberOfAvailableBookCopies(libraryId, bookId),

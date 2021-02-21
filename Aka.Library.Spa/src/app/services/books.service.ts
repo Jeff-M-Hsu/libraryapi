@@ -9,6 +9,8 @@ import { GoogleBooksMetadata } from '../shared/google-books-metadata';
 import { Observable } from 'rxjs/internal/Observable';
 import { throwError } from 'rxjs/internal/observable/throwError';
 import { of } from 'rxjs/internal/observable/of';
+import {forkJoin, Subject} from "rxjs";
+import {take, tap} from "rxjs/operators";
 
 @Injectable()
 export class BooksService {
@@ -24,6 +26,11 @@ export class BooksService {
   getBooks(libraryId: number): Observable<Book[]> {
     const url = `${this.apiUrl}${libraryId}/books`;
     return this.http.get<Book[]>(url);
+  }
+
+  getLibraryInventory(libraryId: number): Observable<LibraryBook[]> {
+    const url = `${this.apiUrl}${libraryId}/books`;
+    return this.http.get<LibraryBook[]>(url);
   }
 
   getBook(libraryId: number, bid: number): Observable<Book> {
@@ -51,7 +58,13 @@ export class BooksService {
    */
   getTotalNumberOfCopiesInLibrary(libraryId: number, bookId: number): Observable<number> {
     // TODO: Add implementation
-    return of(0);
+    const inventory = this.getLibraryInventory(libraryId);
+    const totalCopies = new Subject<number>();
+    inventory.subscribe(inven => {
+      totalCopies.next(inven.find(i => i.book.bookId === bookId).totalPurchasedByLibrary);
+    });
+
+    return totalCopies.asObservable();
   }
 
   /**
@@ -64,8 +77,14 @@ export class BooksService {
    * @memberof BooksService
    */
   getNumberOfAvailableBookCopies(libraryId: number, bookId: number): Observable<number> {
-    // TODO: Add implementation
-    return throwError('Not Implemented');
+    const availableCopies = new Subject<number>();
+    forkJoin([
+      this.getCheckedOutBooks(libraryId),
+      this.getTotalNumberOfCopiesInLibrary(libraryId, bookId)
+    ]).subscribe(([checkedOutBooks, totalCopies]) => {
+      availableCopies.next(totalCopies - checkedOutBooks.filter(book => book.bookId === bookId).length);
+    });
+    return availableCopies.asObservable();
   }
 
   checkOutBook(libraryId: number, bookId: number, memberId: number): Observable<SignedOutBook> {
@@ -88,10 +107,21 @@ export class BooksService {
    */
   getBookMetaData(isbn: string): Observable<GoogleBooksMetadata> {
     // TODO: Add implementation
-    const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=${this.googleBooksAPIKey}`;
-    console.log(url)
-    // return this.http.get(url);
-    return throwError('Funtion not implemented');
+    const formattedIsbn = (!!isbn) ? isbn.replace(/[^0-9]+/, '') : isbn;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${formattedIsbn}&key=${this.googleBooksAPIKey}`;
+    const metaData = new Subject<GoogleBooksMetadata>();
+    this.http.get(url).subscribe((result: any) => {
+      const data: GoogleBooksMetadata = {
+        description: result.items[0].volumeInfo.description,
+        authors: result.items[0].volumeInfo.authors,
+        imageLinks: {
+          thumbnail: result.items[0].volumeInfo.imageLinks.thumbnail,
+          smallThumbnail: result.items[0].volumeInfo.imageLinks.smallThumbnail
+        }
+      };
+      metaData.next(data);
+    });
+    return metaData.asObservable();
 
   }
 
